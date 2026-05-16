@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package widecolumn;
+
+option java_multiple_files = true;
+option java_package = "com.alessandra.widecolumn.proto";
+option java_outer_classname = "WideColumnProto";
+
+service WideColumnNode {
+  rpc Put(PutRequest) returns (WriteResponse);
+  rpc Get(GetRequest) returns (ReadResponse);
+  rpc Delete(DeleteRequest) returns (WriteResponse);
+  rpc Replicate(ReplicationEnvelope) returns (WriteResponse);
+}
+
+message ColumnValue {
+  string family = 1;
+  string qualifier = 2;
+  bytes value = 3;
+}
+
+message CellVersion {
+  string family = 1;
+  string qualifier = 2;
+  bytes value = 3;
+  int64 timestamp = 4;
+  bool tombstone = 5;
+}
+
+message PutRequest {
+  string table = 1;
+  string row_key = 2;
+  repeated ColumnValue columns = 3;
+  int64 timestamp = 4;
+}
+
+message GetRequest {
+  string table = 1;
+  string row_key = 2;
+  repeated string column_selectors = 3;
+  int64 read_timestamp = 4;
+}
+
+message DeleteRequest {
+  string table = 1;
+  string row_key = 2;
+  repeated string column_selectors = 3;
+  int64 timestamp = 4;
+}
+
+message ReplicationEnvelope {
+  string source_node_id = 1;
+  oneof operation {
+    PutRequest put = 2;
+    DeleteRequest delete = 3;
+  }
+}
+
+message ReadResponse {
+  bool found = 1;
+  string table = 2;
+  string row_key = 3;
+  repeated CellVersion cells = 4;
+  int64 coordinator_timestamp = 5;
+}
+
+message WriteResponse {
+  bool acknowledged = 1;
+  string node_id = 2;
+  int64 applied_timestamp = 3;
+  string message = 4;
+}

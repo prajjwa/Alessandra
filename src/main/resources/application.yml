@@ -1,0 +1,21 @@
+server:
+  port: ${HTTP_PORT:8080}
+
+alessandra:
+  node-id: ${NODE_ID:node-a}
+  grpc-port: ${GRPC_PORT:9090}
+  storage:
+    path: ${STORAGE_PATH:data/rocksdb}
+  replication-factor: ${REPLICATION_FACTOR:3}
+  read-quorum: ${READ_QUORUM:2}
+  write-quorum: ${WRITE_QUORUM:2}
+  nodes:
+    - id: node-a
+      host: ${NODE_A_HOST:node-a}
+      grpc-port: ${NODE_A_GRPC_PORT:9090}
+    - id: node-b
+      host: ${NODE_B_HOST:node-b}
+      grpc-port: ${NODE_B_GRPC_PORT:9090}
+    - id: node-c
+      host: ${NODE_C_HOST:node-c}
+      grpc-port: ${NODE_C_GRPC_PORT:9090}
