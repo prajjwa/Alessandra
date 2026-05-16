@@ -4,6 +4,8 @@ import com.alessandra.widecolumn.config.DatabaseProperties;
 import com.alessandra.widecolumn.proto.GetRequest;
 import com.alessandra.widecolumn.proto.ReadResponse;
 import com.alessandra.widecolumn.proto.ReplicationEnvelope;
+import com.alessandra.widecolumn.proto.VersionHistoryRequest;
+import com.alessandra.widecolumn.proto.VersionHistoryResponse;
 import com.alessandra.widecolumn.proto.WideColumnNodeGrpc;
 import com.alessandra.widecolumn.proto.WriteResponse;
 import io.grpc.ManagedChannel;
@@ -29,6 +31,10 @@ public class ReplicaClient implements AutoCloseable {
 
     public ReadResponse get(DatabaseProperties.Node node, GetRequest request) {
         return blockingStub(node).get(request);
+    }
+
+    public VersionHistoryResponse getVersions(DatabaseProperties.Node node, VersionHistoryRequest request) {
+        return blockingStub(node).getVersions(request);
     }
 
     public boolean isLocal(DatabaseProperties.Node node) {

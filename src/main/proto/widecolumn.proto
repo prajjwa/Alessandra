@@ -9,6 +9,7 @@ option java_outer_classname = "WideColumnProto";
 service WideColumnNode {
   rpc Put(PutRequest) returns (WriteResponse);
   rpc Get(GetRequest) returns (ReadResponse);
+  rpc GetVersions(VersionHistoryRequest) returns (VersionHistoryResponse);
   rpc Delete(DeleteRequest) returns (WriteResponse);
   rpc Replicate(ReplicationEnvelope) returns (WriteResponse);
 }
@@ -41,6 +42,16 @@ message GetRequest {
   int64 read_timestamp = 4;
 }
 
+message VersionHistoryRequest {
+  string table = 1;
+  string row_key = 2;
+  repeated string column_selectors = 3;
+  int64 from_timestamp = 4;
+  int64 to_timestamp = 5;
+  bool include_tombstones = 6;
+  int32 limit = 7;
+}
+
 message DeleteRequest {
   string table = 1;
   string row_key = 2;
@@ -61,6 +72,14 @@ message ReadResponse {
   string table = 2;
   string row_key = 3;
   repeated CellVersion cells = 4;
+  int64 coordinator_timestamp = 5;
+}
+
+message VersionHistoryResponse {
+  bool found = 1;
+  string table = 2;
+  string row_key = 3;
+  repeated CellVersion versions = 4;
   int64 coordinator_timestamp = 5;
 }
 

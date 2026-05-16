@@ -4,6 +4,7 @@ import com.alessandra.widecolumn.cluster.QuorumCoordinator;
 import com.alessandra.widecolumn.cluster.QuorumUnavailableException;
 import com.alessandra.widecolumn.model.Cell;
 import com.alessandra.widecolumn.model.ColumnMutation;
+import com.alessandra.widecolumn.model.RowHistory;
 import com.alessandra.widecolumn.model.RowSnapshot;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -51,6 +52,22 @@ public class RowsController {
         return new RowResponse(snapshot.table(), snapshot.rowKey(), snapshot.cells().stream().map(RowResponse.CellResponse::from).toList());
     }
 
+
+    @GetMapping("/versions")
+    public VersionHistoryResponse versions(@PathVariable String table,
+                                           @PathVariable String rowKey,
+                                           @RequestParam(defaultValue = "") List<String> columns,
+                                           @RequestParam(defaultValue = "0") long fromTimestamp,
+                                           @RequestParam(defaultValue = "0") long toTimestamp,
+                                           @RequestParam(defaultValue = "false") boolean includeTombstones,
+                                           @RequestParam(defaultValue = "100") int limit) {
+        RowHistory history = coordinator.getVersions(table, rowKey, normalizeSelectors(columns), fromTimestamp,
+                toTimestamp, includeTombstones, limit);
+        return new VersionHistoryResponse(history.table(), history.rowKey(), history.versions().stream()
+                .map(VersionHistoryResponse.CellVersionResponse::from)
+                .toList());
+    }
+
     @DeleteMapping
     public QuorumCoordinator.WriteResult delete(@PathVariable String table,
                                                 @PathVariable String rowKey,
@@ -72,6 +89,15 @@ public class RowsController {
 
     public record PutRowRequest(List<ColumnRequest> columns) {}
     public record ColumnRequest(String family, String qualifier, String value) {}
+
+    public record VersionHistoryResponse(String table, String rowKey, List<CellVersionResponse> versions) {
+        public record CellVersionResponse(String family, String qualifier, String value, long timestamp, boolean tombstone) {
+            static CellVersionResponse from(Cell cell) {
+                return new CellVersionResponse(cell.family(), cell.qualifier(), new String(cell.value(), StandardCharsets.UTF_8),
+                        cell.timestamp(), cell.tombstone());
+            }
+        }
+    }
 
     public record RowResponse(String table, String rowKey, List<CellResponse> cells) {
         public record CellResponse(String family, String qualifier, String value, long timestamp) {

@@ -1,6 +1,7 @@
 package com.alessandra.widecolumn.store;
 
 import com.alessandra.widecolumn.model.ColumnMutation;
+import com.alessandra.widecolumn.model.RowHistory;
 import com.alessandra.widecolumn.model.RowSnapshot;
 
 import java.util.Collection;
@@ -12,6 +13,8 @@ public interface WideColumnStore extends AutoCloseable {
     long delete(String table, String rowKey, Collection<String> selectors, long timestamp);
 
     RowSnapshot get(String table, String rowKey, Collection<String> selectors, long readTimestamp);
+
+    RowHistory getVersions(String table, String rowKey, Collection<String> selectors, long fromTimestamp, long toTimestamp, boolean includeTombstones, int limit);
 
     List<String> scanRowKeys(String table, String startRow, int limit);
 

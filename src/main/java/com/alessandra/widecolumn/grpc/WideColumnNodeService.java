@@ -6,6 +6,8 @@ import com.alessandra.widecolumn.proto.GetRequest;
 import com.alessandra.widecolumn.proto.PutRequest;
 import com.alessandra.widecolumn.proto.ReadResponse;
 import com.alessandra.widecolumn.proto.ReplicationEnvelope;
+import com.alessandra.widecolumn.proto.VersionHistoryRequest;
+import com.alessandra.widecolumn.proto.VersionHistoryResponse;
 import com.alessandra.widecolumn.proto.WideColumnNodeGrpc;
 import com.alessandra.widecolumn.proto.WriteResponse;
 import com.alessandra.widecolumn.store.WideColumnStore;
@@ -33,6 +35,15 @@ public class WideColumnNodeService extends WideColumnNodeGrpc.WideColumnNodeImpl
     public void get(GetRequest request, StreamObserver<ReadResponse> responseObserver) {
         responseObserver.onNext(GrpcMapper.toReadResponse(store.get(request.getTable(), request.getRowKey(),
                 request.getColumnSelectorsList(), request.getReadTimestamp()), System.currentTimeMillis()));
+        responseObserver.onCompleted();
+    }
+
+
+    @Override
+    public void getVersions(VersionHistoryRequest request, StreamObserver<VersionHistoryResponse> responseObserver) {
+        responseObserver.onNext(GrpcMapper.toVersionHistoryResponse(store.getVersions(request.getTable(), request.getRowKey(),
+                request.getColumnSelectorsList(), request.getFromTimestamp(), request.getToTimestamp(),
+                request.getIncludeTombstones(), request.getLimit()), System.currentTimeMillis()));
         responseObserver.onCompleted();
     }
 
