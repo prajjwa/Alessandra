@@ -5,7 +5,7 @@ A Java/Spring Boot prototype of a distributed wide-column database. It demonstra
 ## Features
 
 - **Wide-column data model**: rows are addressed by `table` and `rowKey`, with arbitrary `family:qualifier` columns.
-- **MVCC concurrency control**: every cell write is stored as a timestamped immutable version; reads can target the latest version or a historical timestamp.
+- **MVCC concurrency control**: every cell write is stored as a timestamped immutable version; reads can target the latest version or a historical timestamp, and callers can inspect bounded version history including tombstones.
 - **Quorum reads and writes**: coordinators route mutations to the replica set and require configurable read/write acknowledgement counts.
 - **Automatic sharding**: a consistent-hash ring maps each row to a replica set across the cluster.
 - **Replication**: nodes exchange mutations over gRPC with Protocol Buffers.
@@ -30,6 +30,12 @@ Read a row:
 
 ```bash
 curl 'http://localhost:8080/tables/users/rows/u1?columns=profile:name'
+```
+
+Read MVCC version history for a row or selected columns:
+
+```bash
+curl 'http://localhost:8080/tables/users/rows/u1/versions?columns=profile:name&fromTimestamp=0&toTimestamp=0&includeTombstones=true&limit=25'
 ```
 
 Delete a column:

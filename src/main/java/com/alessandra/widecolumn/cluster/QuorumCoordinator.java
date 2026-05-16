@@ -3,6 +3,7 @@ package com.alessandra.widecolumn.cluster;
 import com.alessandra.widecolumn.config.DatabaseProperties;
 import com.alessandra.widecolumn.grpc.GrpcMapper;
 import com.alessandra.widecolumn.model.ColumnMutation;
+import com.alessandra.widecolumn.model.RowHistory;
 import com.alessandra.widecolumn.model.RowSnapshot;
 import com.alessandra.widecolumn.proto.ColumnValue;
 import com.alessandra.widecolumn.proto.DeleteRequest;
@@ -10,6 +11,8 @@ import com.alessandra.widecolumn.proto.GetRequest;
 import com.alessandra.widecolumn.proto.PutRequest;
 import com.alessandra.widecolumn.proto.ReadResponse;
 import com.alessandra.widecolumn.proto.ReplicationEnvelope;
+import com.alessandra.widecolumn.proto.VersionHistoryRequest;
+import com.alessandra.widecolumn.proto.VersionHistoryResponse;
 import com.alessandra.widecolumn.store.WideColumnStore;
 import com.google.protobuf.ByteString;
 import org.springframework.stereotype.Service;
@@ -90,6 +93,38 @@ public class QuorumCoordinator {
             throw new QuorumUnavailableException("Read quorum not reached for " + table + "/" + rowKey);
         }
         return GrpcMapper.merge(table, rowKey, responses);
+    }
+
+
+    public RowHistory getVersions(String table, String rowKey, Collection<String> selectors, long fromTimestamp, long toTimestamp, boolean includeTombstones, int limit) {
+        VersionHistoryRequest request = VersionHistoryRequest.newBuilder()
+                .setTable(table)
+                .setRowKey(rowKey)
+                .setFromTimestamp(fromTimestamp)
+                .setToTimestamp(toTimestamp)
+                .setIncludeTombstones(includeTombstones)
+                .setLimit(limit)
+                .addAllColumnSelectors(selectors)
+                .build();
+        List<VersionHistoryResponse> responses = new ArrayList<>();
+        for (DatabaseProperties.Node replica : ring.replicasFor(table, rowKey)) {
+            try {
+                if (replicaClient.isLocal(replica)) {
+                    responses.add(GrpcMapper.toVersionHistoryResponse(store.getVersions(table, rowKey, selectors, fromTimestamp, toTimestamp, includeTombstones, limit), System.currentTimeMillis()));
+                } else {
+                    responses.add(replicaClient.getVersions(replica, request));
+                }
+                if (responses.size() >= properties.getReadQuorum()) {
+                    break;
+                }
+            } catch (RuntimeException ignored) {
+                // Prototype behavior: skip unavailable replicas and fail if quorum is not reached.
+            }
+        }
+        if (responses.size() < properties.getReadQuorum()) {
+            throw new QuorumUnavailableException("Version-history read quorum not reached for " + table + "/" + rowKey);
+        }
+        return GrpcMapper.mergeHistory(table, rowKey, responses, limit);
     }
 
     private WriteResult replicate(String table, String rowKey, ReplicationEnvelope envelope, LocalMutation localMutation) {

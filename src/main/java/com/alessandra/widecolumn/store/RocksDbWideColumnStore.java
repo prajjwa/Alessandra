@@ -2,6 +2,7 @@ package com.alessandra.widecolumn.store;
 
 import com.alessandra.widecolumn.model.Cell;
 import com.alessandra.widecolumn.model.ColumnMutation;
+import com.alessandra.widecolumn.model.RowHistory;
 import com.alessandra.widecolumn.model.RowSnapshot;
 import org.rocksdb.Options;
 import org.rocksdb.RocksDB;
@@ -86,6 +87,36 @@ public class RocksDbWideColumnStore implements WideColumnStore, DisposableBean {
         return new RowSnapshot(table, rowKey, visible);
     }
 
+
+    @Override
+    public RowHistory getVersions(String table, String rowKey, Collection<String> selectors, long fromTimestamp, long toTimestamp, boolean includeTombstones, int limit) {
+        Set<String> requested = selectors == null || selectors.isEmpty() ? Set.of() : new HashSet<>(selectors);
+        long lowerBound = Math.max(0, fromTimestamp);
+        long upperBound = toTimestamp <= 0 ? MAX_TS : toTimestamp;
+        int maxVersions = limit <= 0 ? Integer.MAX_VALUE : limit;
+        List<Cell> versions = new ArrayList<>();
+        byte[] prefix = prefix(table, rowKey);
+        try (RocksIterator iterator = db.newIterator()) {
+            iterator.seek(prefix);
+            while (iterator.isValid() && startsWith(iterator.key(), prefix)) {
+                DecodedKey decoded = decode(iterator.key());
+                if (matchesHistoryFilter(decoded, requested, lowerBound, upperBound)) {
+                    Cell cell = deserialize(decoded, iterator.value());
+                    if (includeTombstones || !cell.tombstone()) {
+                        versions.add(cell);
+                    }
+                }
+                iterator.next();
+            }
+        }
+        List<Cell> ordered = versions.stream()
+                .sorted(java.util.Comparator.comparingLong(Cell::timestamp).reversed()
+                        .thenComparing(Cell::selector))
+                .limit(maxVersions)
+                .toList();
+        return new RowHistory(table, rowKey, ordered);
+    }
+
     @Override
     public List<String> scanRowKeys(String table, String startRow, int limit) {
         List<String> keys = new ArrayList<>();
@@ -106,6 +137,13 @@ public class RocksDbWideColumnStore implements WideColumnStore, DisposableBean {
             }
         }
         return keys;
+    }
+
+
+    private static boolean matchesHistoryFilter(DecodedKey decoded, Set<String> requested, long lowerBound, long upperBound) {
+        return (requested.isEmpty() || requested.contains(decoded.selector()))
+                && decoded.timestamp() >= lowerBound
+                && decoded.timestamp() <= upperBound;
     }
 
     private void writeCell(String table, String rowKey, String family, String qualifier, byte[] value, long timestamp, boolean tombstone) {
